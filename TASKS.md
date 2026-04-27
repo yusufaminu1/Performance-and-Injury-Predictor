@@ -17,14 +17,14 @@
    - Bulk insert with conflict resolution (`INSERT OR IGNORE`)
    - Parameterized query runner
    - Schema migration support (versioned `ALTER TABLE` scripts)
-4. Write `src/scraper.py` — automated data collection pipeline:
-   - Scrape per-game stats from Basketball Reference (2000–2024) using `requests` + `BeautifulSoup`
-   - Implement rate limiting and retry logic to avoid IP blocks
-   - Parse and normalize HTML tables into structured DataFrames
+4. Write `src/data_fetcher.py` — automated data collection pipeline using `nba_api`:
+   - Fetch per-game stats for all players (2000–2024) using `nba_api` (`pip install nba_api`)
+   - Implement rate limiting and retry logic to handle API timeouts
+   - Normalize API responses into structured DataFrames
    - Export to `data/raw/player_stats.csv` as a checkpoint
 5. Download and validate the Kaggle injury CSV (`data/raw/nba_injuries.csv`):
    - Write a validation script that checks column types, null rates, and value ranges before ingestion
-6. Write `src/pipeline.py` — end-to-end ETL orchestrator that runs scraper → validate → clean → insert in one command
+6. Write `src/pipeline.py` — end-to-end ETL orchestrator that runs data_fetcher → validate → clean → insert in one command
 7. Write `notebooks/01_data_collection.ipynb`:
    - Run the full pipeline, show row counts per table, verify referential integrity with JOIN queries
    - Profile data quality (null %, duplicate %, date range coverage)
