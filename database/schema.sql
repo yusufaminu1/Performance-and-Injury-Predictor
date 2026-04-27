@@ -26,12 +26,12 @@ CREATE TABLE IF NOT EXISTS player_stats (
 CREATE TABLE IF NOT EXISTS players_injuries (
   injury_id INTEGER PRIMARY KEY NOT NULL,
   player_id INTEGER NOT NULL,
-  FOREIGN KEY (player_id) REFERENCES players(player_id),
   season TEXT NOT NULL,
   date_of_injury TEXT,
   injury_type TEXT NOT NULL,
   required_surgery INTEGER NOT NULL,
-  games_missed INTEGER NOT NULL
+  games_missed INTEGER NOT NULL,
+  FOREIGN KEY (player_id) REFERENCES players(player_id)
 );
 
 CREATE TABLE IF NOT EXISTS player_season_features (
