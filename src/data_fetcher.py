@@ -8,9 +8,11 @@ from nba_api.stats.endpoints import playercareerstats
 from nba_api.stats.endpoints import leaguedashplayerstats
 from kagglehub import KaggleDatasetAdapter
 
-nba_players_list = players.get_players()
-nba_players = {player['id'] : player for player in nba_players_list}
-df_players = pd.DataFrame(nba_players).sort_index(axis = 1)
+def get_players():
+  nba_players_list = players.get_players()
+  nba_players = {player['id'] : player for player in nba_players_list}
+  df_players = pd.DataFrame(nba_players).sort_index(axis = 1)
+  return df_players
 
 def fetch_stats():
   seasons = []
