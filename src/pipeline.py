@@ -3,7 +3,7 @@ import cleaner
 import db_manager
 import sqlite3
 
-if __name__ = '__main__':
+if __name__ == '__main__':
   conn = sqlite3.connect('database/nba_predictor.db')
 
   stats = data_fetcher.fetch_stats()
