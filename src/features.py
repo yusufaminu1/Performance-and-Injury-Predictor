@@ -45,7 +45,7 @@ def compute_age_risk_factor():
     df['age'] = df['season_year'] - df['birth_date'].dt.year
 
     bins = [0,24,29,33,100]
-    labels = ['under 25','25-20','30-33','34+']
+    labels = ['under 25','25-29','30-33','34+']
     df['age_risk_factor'] = pd.cut(df['age'],bins=bins,labels=labels)
     return df[['player_id', 'season', 'age', 'age_risk_factor']]
 def compute_games_missed_last_season():                                                                
