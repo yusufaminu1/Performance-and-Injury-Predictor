@@ -8,6 +8,10 @@ from nba_api.stats.endpoints import playercareerstats
 from nba_api.stats.endpoints import leaguedashplayerstats
 from kagglehub import KaggleDatasetAdapter
 
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+RAW_DIR = os.path.join(BASE_DIR, 'data', 'raw')
+os.makedirs(RAW_DIR, exist_ok=True)
+
 def get_players():
   nba_players_list = players.get_players()
   nba_players = {player['id'] : player for player in nba_players_list}
@@ -22,23 +26,27 @@ def fetch_stats():
     stats = leaguedashplayerstats.LeagueDashPlayerStats(season=seasons[index], timeout=120)
     df = stats.get_data_frames()[0]
     df['season'] = seasons[index]
-    dfs.append(stats.get_data_frames()[0])
+    dfs.append(df)
     time.sleep(1)
 
   for i, df in enumerate(dfs):
-    if not os.path.exists(f'data/raw/player_stats_{i+2000}.csv'):
-      df.to_csv(f'data/raw/player_stats_{i + 2000}.csv', index=False)
+    path = os.path.join(RAW_DIR, f'player_stats_{i+2000}.csv')
+    if not os.path.exists(path):
+      df.to_csv(path, index=False)
+
+  return pd.concat(dfs, ignore_index=True)
 
 def fetch_injuries():
-  if not os.path.exists('data/raw/nba_injuries.csv'):
+  injuries_path = os.path.join(RAW_DIR, 'nba_injuries.csv')
+  if not os.path.exists(injuries_path):
       path = kagglehub.dataset_download("loganlauton/nba-injury-stats-1951-2023")
       df_injuries = pd.read_csv(f"{path}/NBA Player Injury Stats(1951 - 2023).csv")
-      df_injuries = df_injuries[df_injuries['Date'].str[:4].astype(int) >= 2000]
-      df_injuries = df_injuries[df_injuries['Date'].str[4] == '-' & df_injuries['Date'].str[7] == '']
-      df_injuries.to_csv('data/raw/nba_injuries.csv', index=False, columns=['Date','Team','Acquired','Relinquished','Notes'])
+      df_injuries = df_injuries[pd.to_datetime(df_injuries['Date'], errors='coerce') >= '2000-01-01']
+      df_injuries = df_injuries.dropna(subset=['Date'])
+      df_injuries.to_csv(injuries_path, index=False, columns=['Date','Team','Acquired','Relinquished','Notes'])
   else:
-      df_injuries = pd.read_csv('data/raw/nba_injuries.csv')
-      
+      df_injuries = pd.read_csv(injuries_path)
+
   total_null_acquired = len(df_injuries[df_injuries['Acquired'].isna()])
   total_null_relinquished = len(df_injuries[df_injuries['Relinquished'].isna()])
 
@@ -46,7 +54,8 @@ def fetch_injuries():
   null_rate_acquired = (total_null_acquired/total_rows) * 100
   null_rate_relinquished = (total_null_relinquished/total_rows) * 100
 
-  print({'acquired null rate': null_rate_acquired,  'relinquished null rate': null_rate_relinquished})
+  print({'acquired null rate': null_rate_acquired, 'relinquished null rate': null_rate_relinquished})
+  return df_injuries
 
 
 

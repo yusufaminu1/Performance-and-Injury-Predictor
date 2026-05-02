@@ -36,6 +36,7 @@ def load_training_data():
         JOIN player_stats ps ON psf.player_id = ps.player_id AND psf.season = ps.season
     """, conn)
     conn.close()
+    df['per_change'] = df['per_change'].fillna(0)
     df = df.dropna()
     return df
 

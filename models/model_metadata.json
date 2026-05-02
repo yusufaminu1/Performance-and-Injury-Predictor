@@ -1,0 +1,16 @@
+{
+  "trained_at": "2026-05-02T10:26:10.006632",
+  "model_type": "Logistic Regression",
+  "f1_score": 1.0,
+  "features": [
+    "workload_score",
+    "per_change",
+    "age",
+    "games_missed_last_season",
+    "points_per_game",
+    "minutes_per_game",
+    "games_played"
+  ],
+  "training_rows": 4,
+  "test_rows": 2
+}
