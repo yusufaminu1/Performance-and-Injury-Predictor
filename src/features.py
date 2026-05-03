@@ -2,6 +2,15 @@ import sqlite3
 import pandas as pd
 import os
 
+SEASON_LENGTH = {
+    '2011-12': 66,
+    '2019-20': 72,
+    '2020-21': 72,
+}
+
+def get_season_games(season):
+    return SEASON_LENGTH.get(season, 82)
+
 def get_connection():
     base_dir = os.path.dirname(os.path.dirname(__file__))
     db_path = os.path.join(base_dir,'database','nba_predictor.db')
@@ -29,38 +38,34 @@ def compute_per():
 
 def compute_injury_flag():
     conn = get_connection()
-    df = pd .read_sql_query("""SELECT player_id, season, SUM(games_missed) as total_games_missed FROM players_injuries GROUP BY player_id, season""",conn)
+    df = pd.read_sql_query("""SELECT player_id, season, games_played FROM player_stats""", conn)
     conn.close()
 
-    df['injury_flag'] = (df['total_games_missed']>= 10).astype(int)
-    return df[['player_id','season','total_games_missed','injury_flag']]
+    df['season_games'] = df['season'].apply(get_season_games)
+    df['total_games_missed'] = (df['season_games'] - df['games_played']).clip(lower=0)
+    df['injury_flag'] = (df['total_games_missed'] >= 10).astype(int)
+    return df[['player_id', 'season', 'total_games_missed', 'injury_flag']]
 
 def compute_age_risk_factor():
     conn = get_connection()
-    df = pd.read_sql_query("""SELECT ps.player_id, ps.season, p.birth_date FROM player_stats ps JOIN players p on ps.player_id = p.player_id""",conn)
+    df = pd.read_sql_query("""SELECT player_id, season, age FROM player_stats""", conn)
     conn.close()
-
-    df['birth_date'] = pd.to_datetime(df['birth_date'])
-    df['season_year'] = df['season'].str[:4].astype(int)
-    df['age'] = df['season_year'] - df['birth_date'].dt.year
 
     bins = [0,24,29,33,100]
     labels = ['under 25','25-29','30-33','34+']
     df['age_risk_factor'] = pd.cut(df['age'],bins=bins,labels=labels)
     return df[['player_id', 'season', 'age', 'age_risk_factor']]
-def compute_games_missed_last_season():                                                                
-      conn = get_connection()
-      df = pd.read_sql_query("""
-          SELECT player_id, season, SUM(games_missed) as total_games_missed FROM players_injuries
-          GROUP BY player_id, season
-      """, conn)
+def compute_games_missed_last_season():
+    conn = get_connection()
+    df = pd.read_sql_query("""SELECT player_id, season, games_played FROM player_stats""", conn)
+    conn.close()
 
-      conn.close()
+    df['season_games'] = df['season'].apply(get_season_games)
+    df['total_games_missed'] = (df['season_games'] - df['games_played']).clip(lower=0)
+    df = df.sort_values(['player_id', 'season'])
+    df['games_missed_last_season'] = df.groupby('player_id')['total_games_missed'].shift(1)
 
-      df = df.sort_values(['player_id', 'season'])
-      df['games_missed_last_season'] = df.groupby('player_id')['total_games_missed'].shift(1)
-
-      return df[['player_id', 'season', 'games_missed_last_season']]
+    return df[['player_id', 'season', 'games_missed_last_season']]
 
 def build_features():
     workload = compute_workload_score()

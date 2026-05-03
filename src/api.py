@@ -35,7 +35,6 @@ class StatsInput(BaseModel):
     games_missed_last_season: int
     points_per_game: float
     minutes_per_game: float
-    games_played: int
 
 
 class PredictionResponse(BaseModel):
@@ -100,7 +99,7 @@ def get_player_prediction(player_id: int):
     row = conn.execute(
         """
         SELECT psf.workload_score, psf.per_change, psf.age, psf.games_missed_last_season,
-               ps.points_per_game, ps.minutes_per_game, ps.games_played
+               ps.points_per_game, ps.minutes_per_game
         FROM player_season_features psf
         JOIN player_stats ps ON psf.player_id = ps.player_id AND psf.season = ps.season
         WHERE psf.player_id = ?
@@ -121,6 +120,5 @@ def get_player_prediction(player_id: int):
         'games_missed_last_season': row[3],
         'points_per_game': row[4],
         'minutes_per_game': row[5],
-        'games_played': row[6],
     }
     return model_loader.predict(features)

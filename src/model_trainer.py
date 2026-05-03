@@ -22,7 +22,7 @@ METADATA_PATH = os.path.join(MODELS_DIR, 'model_metadata.json')
 
 FEATURE_COLS = [
     'workload_score', 'per_change', 'age', 'games_missed_last_season',
-    'points_per_game', 'minutes_per_game', 'games_played'
+    'points_per_game', 'minutes_per_game'
 ]
 
 
@@ -31,7 +31,7 @@ def load_training_data():
     df = pd.read_sql_query("""
         SELECT psf.player_id, psf.season, psf.workload_score, psf.per_change,
                psf.injury_flag, psf.age, psf.games_missed_last_season,
-               ps.points_per_game, ps.minutes_per_game, ps.games_played
+               ps.points_per_game, ps.minutes_per_game
         FROM player_season_features psf
         JOIN player_stats ps ON psf.player_id = ps.player_id AND psf.season = ps.season
     """, conn)

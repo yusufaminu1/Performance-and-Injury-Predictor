@@ -8,7 +8,7 @@ SCALER_PATH = os.path.join(BASE_DIR, 'models', 'scaler.pkl')
 
 FEATURE_COLS = [
     'workload_score', 'per_change', 'age', 'games_missed_last_season',
-    'points_per_game', 'minutes_per_game', 'games_played'
+    'points_per_game', 'minutes_per_game'
 ]
 
 _model = None

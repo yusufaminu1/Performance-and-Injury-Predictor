@@ -6,7 +6,7 @@ import cleaner
 import db_manager
 
 STATS_COLS = [
-    'player_id', 'season', 'team', 'position', 'games_played',
+    'player_id', 'season', 'team', 'position', 'age', 'games_played',
     'minutes_per_game', 'points_per_game', 'assists_per_game',
     'rebounds_per_game', 'blocks_per_game', 'steals_per_game',
     'field_goal_percentage'

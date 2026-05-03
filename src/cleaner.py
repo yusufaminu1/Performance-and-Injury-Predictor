@@ -330,7 +330,7 @@ def clean_injuries(df: pd.DataFrame) -> pd.DataFrame:
         else:
             days_out = (next_return - r["date"]).days
             # NBA plays roughly every other day in season.
-            games_missed.append(max(0, int(round(days_out / 2.5))))
+            games_missed.append(min(82, max(0, int(round(days_out / 2.5)))))
     rel_df["games_missed"] = games_missed
 
     rel_df["injury_type"] = rel_df["notes"].apply(classify_injury)

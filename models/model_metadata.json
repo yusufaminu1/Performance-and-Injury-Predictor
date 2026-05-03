@@ -1,16 +1,15 @@
 {
-  "trained_at": "2026-05-02T10:26:10.006632",
-  "model_type": "Logistic Regression",
-  "f1_score": 1.0,
+  "trained_at": "2026-05-02T21:29:48.257508",
+  "model_type": "Random Forest",
+  "f1_score": 0.9382,
   "features": [
     "workload_score",
     "per_change",
     "age",
     "games_missed_last_season",
     "points_per_game",
-    "minutes_per_game",
-    "games_played"
+    "minutes_per_game"
   ],
-  "training_rows": 4,
-  "test_rows": 2
+  "training_rows": 9327,
+  "test_rows": 2332
 }
