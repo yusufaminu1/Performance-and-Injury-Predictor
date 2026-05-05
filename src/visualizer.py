@@ -1,11 +1,3 @@
-"""
-Reusable plotting module for the NBA Performance & Injury Predictor.
-
-Every public function takes a tidy DataFrame, applies the shared styling
-defined in ``setup_style()``, and saves a PNG to ``outputs/figures/``. Keeping
-all chart logic here means the EDA notebook stays focused on narrative and
-the figures share consistent palette/typography.
-"""
 
 import os
 from typing import Iterable, Optional
@@ -23,7 +15,6 @@ FIGURES_DIR = os.path.join(
     "figures",
 )
 
-# Single source of truth for color/typography.
 PALETTE = {
     "primary": "#1f4e79",
     "accent": "#e07a1f",
@@ -68,12 +59,10 @@ def _save(fig: plt.Figure, name: str, output_dir: Optional[str] = None) -> str:
     return path
 
 
-# Required plots
 
 def plot_workload_distribution(df: pd.DataFrame, workload_col: str = "workload_score",
                                name: str = "workload_distribution",
                                output_dir: Optional[str] = None) -> str:
-    """Histogram of the workload score across the league."""
     setup_style()
     fig, ax = plt.subplots()
     data = df[workload_col].dropna()
@@ -94,7 +83,6 @@ def plot_injury_rate_by_workload_quintile(df: pd.DataFrame,
                                           injury_col: str = "injury_flag",
                                           name: str = "injury_rate_by_workload_quintile",
                                           output_dir: Optional[str] = None) -> str:
-    """Bar chart: share of player-seasons flagged as injured per workload quintile."""
     setup_style()
     work = df[[workload_col, injury_col]].dropna().copy()
     work["quintile"] = pd.qcut(work[workload_col], q=5,
@@ -118,7 +106,6 @@ def plot_correlation_heatmap(df: pd.DataFrame,
                              columns: Optional[Iterable[str]] = None,
                              name: str = "correlation_heatmap",
                              output_dir: Optional[str] = None) -> str:
-    """Correlation heatmap across the analytical features."""
     setup_style()
     default_cols = ["workload_score", "age", "per", "usage_rate", "injury_flag"]
     cols = list(columns) if columns is not None else [c for c in default_cols if c in df.columns]
@@ -139,7 +126,6 @@ def plot_injury_rate_by_age_position(df: pd.DataFrame,
                                      injury_col: str = "injury_flag",
                                      name: str = "injury_rate_by_age_position",
                                      output_dir: Optional[str] = None) -> str:
-    """Grouped bar chart: injury rate by age band, split by position."""
     setup_style()
     work = df[[age_col, position_col, injury_col]].dropna().copy()
     rates = (
@@ -168,7 +154,6 @@ def plot_per_change_by_workload(df: pd.DataFrame,
                                 per_change_col: str = "per_change",
                                 name: str = "per_change_by_workload",
                                 output_dir: Optional[str] = None) -> str:
-    """Boxplot: year-over-year PER change grouped by workload category."""
     setup_style()
     work = df[[workload_col, per_change_col]].dropna().copy()
     work["workload_bucket"] = pd.cut(
@@ -197,7 +182,6 @@ def plot_workload_vs_injury_by_era(df: pd.DataFrame,
                                    season_col: str = "season",
                                    name: str = "workload_injury_by_era",
                                    output_dir: Optional[str] = None) -> str:
-    """Two-axis line chart: mean workload and league injury rate per season."""
     setup_style()
     work = df[[season_col, workload_col, injury_col]].dropna().copy()
     work["season_year"] = work[season_col].astype(str).str[:4].astype(int)
@@ -229,7 +213,6 @@ def plot_workload_vs_injury_by_era(df: pd.DataFrame,
     return _save(fig, name, output_dir)
 
 
-# Career case studies
 
 def plot_player_career(df: pd.DataFrame, player_name: str,
                        workload_col: str = "workload_score",
@@ -238,11 +221,6 @@ def plot_player_career(df: pd.DataFrame, player_name: str,
                        annotations: Optional[dict] = None,
                        name: Optional[str] = None,
                        output_dir: Optional[str] = None) -> str:
-    """Career arc for a single player: workload line + injury-flag markers.
-
-    ``annotations`` is an optional ``{season_str: text}`` mapping for callouts
-    (e.g., {"2017-18": "Load management"}).
-    """
     setup_style()
     work = df[df["player_name_norm"].str.contains(player_name.lower(), na=False)].copy()
     if work.empty:

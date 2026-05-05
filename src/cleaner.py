@@ -1,13 +1,4 @@
-"""
-Data cleaning module for the NBA Performance & Injury Predictor.
 
-Provides reusable cleaning functions for both the raw league-dash player stats
-CSVs (one file per season under ``data/raw/player_stats_<year>.csv``) and the
-Kaggle injury CSV (``data/raw/nba_injuries.csv``). The ``cleaner()`` function
-at the bottom is the orchestrator called by ``src/pipeline.py``; it produces
-clean parquet/CSV checkpoints under ``data/processed/`` so downstream
-notebooks can load them without re-running the heavy cleaning logic.
-"""
 
 import os
 import re
@@ -23,27 +14,18 @@ RAW_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 PROCESSED_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "processed")
 
 
-# Player name normalization
 
 _SUFFIXES = {"jr", "sr", "ii", "iii", "iv", "v"}
 
 
 def normalize_player_name(name: Optional[str]) -> str:
-    """Lowercase, strip accents, drop punctuation and Jr./III suffixes.
-
-    A player can appear as "Luka Dončić", "Luka Doncic", "L. Doncic" — this
-    collapses those to a single matchable key. Returns an empty string for
-    null/empty input so the result is always a string.
-    """
     if name is None or (isinstance(name, float) and np.isnan(name)):
         return ""
     text = str(name).strip()
     if not text:
         return ""
-    # Strip accents.
     text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode("ascii")
     text = text.lower()
-    # Drop apostrophes, periods, commas, dashes (keep spaces between tokens).
     text = re.sub(r"[\.\,\'\`]", "", text)
     text = re.sub(r"[-_/]+", " ", text)
     text = re.sub(r"\s+", " ", text).strip()
@@ -51,15 +33,8 @@ def normalize_player_name(name: Optional[str]) -> str:
     return " ".join(tokens)
 
 
-# Injury date -> NBA season string
 
 def _date_to_season(date_str: Optional[str]) -> Optional[str]:
-    """Convert an ISO date (YYYY-MM-DD) to the NBA season it falls in.
-
-    NBA seasons run Oct -> June. Anything in Jul/Aug/Sep is off-season; we
-    bucket it into the season that *starts* in October of that year (the
-    same convention nba.com uses for transactions).
-    """
     if date_str is None or (isinstance(date_str, float) and np.isnan(date_str)):
         return None
     text = str(date_str).strip()
@@ -80,43 +55,29 @@ def _date_to_season(date_str: Optional[str]) -> Optional[str]:
 
 
 def standardize_injury_dates(df: pd.DataFrame, date_col: str = "Date") -> pd.DataFrame:
-    """Add a ``season`` column derived from the injury date."""
     out = df.copy()
     out[date_col] = pd.to_datetime(out[date_col], errors="coerce")
     out["season"] = out[date_col].apply(lambda d: _date_to_season(d) if pd.notna(d) else None)
     return out
 
 
-# Missing-value handling
+
 
 def fill_missing_with_season_median(df: pd.DataFrame, columns, season_col: str = "season") -> pd.DataFrame:
-    """Fill NaNs in ``columns`` with the median of that column for the same season.
-
-    PER and usage_rate are noisy for low-minutes players; median-by-season is
-    a defensible default that doesn't blow up cross-era comparisons.
-    """
     out = df.copy()
     for col in columns:
         if col not in out.columns:
             continue
         season_median = out.groupby(season_col)[col].transform("median")
         out[col] = out[col].fillna(season_median)
-        # Final safety: if a whole season is null, fall back to the global median.
         out[col] = out[col].fillna(out[col].median())
     return out
 
 
-# Deduplicate traded players
+
 
 def dedupe_traded_players(df: pd.DataFrame, player_col: str = "PLAYER_ID", season_col: str = "season",
                           team_col: str = "TEAM_ABBREVIATION", games_col: str = "GP") -> pd.DataFrame:
-    """One row per (player, season).
-
-    basketball-reference uses a "TOT" row for traded players that aggregates
-    their full season; nba.com data does not, so for each traded player we
-    keep the row with the most games played (their primary team for that
-    season). If a "TOT" row is present we prefer it.
-    """
     if df.empty:
         return df.copy()
     out = df.copy()
@@ -124,7 +85,6 @@ def dedupe_traded_players(df: pd.DataFrame, player_col: str = "PLAYER_ID", seaso
         tot_mask = out[team_col].astype(str).str.upper() == "TOT"
         tot_rows = out[tot_mask]
         non_tot = out[~tot_mask]
-        # Drop non-TOT rows for any (player, season) that has a TOT row.
         keys = set(map(tuple, tot_rows[[player_col, season_col]].itertuples(index=False, name=None)))
         non_tot = non_tot[~non_tot[[player_col, season_col]].apply(tuple, axis=1).isin(keys)]
         out = pd.concat([tot_rows, non_tot], ignore_index=True)
@@ -134,10 +94,8 @@ def dedupe_traded_players(df: pd.DataFrame, player_col: str = "PLAYER_ID", seaso
     return out
 
 
-# Per-game conversions for nba.com league-dash CSVs
 
 def _season_label_from_filename(path: str) -> str:
-    """player_stats_2014.csv -> '2014-15'."""
     m = re.search(r"player_stats_(\d{4})", os.path.basename(path))
     if not m:
         return ""
@@ -146,7 +104,6 @@ def _season_label_from_filename(path: str) -> str:
 
 
 def load_raw_player_stats(raw_dir: str = RAW_DIR) -> pd.DataFrame:
-    """Concatenate every per-season player_stats CSV into one DataFrame."""
     files = sorted(glob.glob(os.path.join(raw_dir, "player_stats_*.csv")))
     frames = []
     for f in files:
@@ -160,28 +117,18 @@ def load_raw_player_stats(raw_dir: str = RAW_DIR) -> pd.DataFrame:
 
 
 def clean_player_stats(df: pd.DataFrame) -> pd.DataFrame:
-    """Convert the raw nba.com league-dash dump to the schema in ``schema.sql``.
-
-    Output columns: ``points_per_game, assists_per_game, rebounds_per_game,
-    blocks_per_game, steals_per_game, minutes_per_game, field_goal_percentage,
-    games_played, team, position, season, player_id, player_name, age``.
-    Position is not in the league-dash feed, so it's filled with "UNK" — a
-    proper position lookup is a separate enrichment step left to the pipeline.
-    """
+  
     if df.empty:
         return df.copy()
     out = df.copy()
 
-    # Standardize column names we depend on.
     expected = {"PLAYER_ID", "PLAYER_NAME", "TEAM_ABBREVIATION", "AGE", "GP",
                 "PTS", "AST", "REB", "BLK", "STL", "MIN", "FG_PCT", "season"}
     missing = expected - set(out.columns)
     if missing:
-        # Fill missing columns with sensible defaults so downstream code doesn't crash.
         for col in missing:
             out[col] = np.nan
 
-    # Convert season totals to per-game where the schema expects per-game.
     gp_safe = out["GP"].replace(0, np.nan)
     out["points_per_game"] = out["PTS"] / gp_safe
     out["assists_per_game"] = out["AST"] / gp_safe
@@ -198,11 +145,9 @@ def clean_player_stats(df: pd.DataFrame) -> pd.DataFrame:
     out["player_name_norm"] = out["player_name"].apply(normalize_player_name)
     out["age"] = pd.to_numeric(out["AGE"], errors="coerce")
 
-    # Drop rows that are obviously broken (no player_id, zero games).
     out = out.dropna(subset=["player_id"])
     out = out[out["games_played"] > 0]
 
-    # Fill noisy/missing efficiency columns with season medians.
     out = fill_missing_with_season_median(
         out,
         columns=["field_goal_percentage", "minutes_per_game", "points_per_game"],
@@ -220,12 +165,8 @@ def clean_player_stats(df: pd.DataFrame) -> pd.DataFrame:
     return out[keep].reset_index(drop=True)
 
 
-# Injury cleaning
 
 def _split_relinquished(cell: Optional[str]) -> list:
-    """The Kaggle 'Relinquished' column packs multiple players into one cell:
-    "Daron Blaylock / Mookie Blaylock". Split on / and strip whitespace and
-    a leading bullet ('•') that the source occasionally inserts."""
     if cell is None or (isinstance(cell, float) and np.isnan(cell)):
         return []
     text = str(cell).strip().lstrip("•").strip()
@@ -268,15 +209,6 @@ def required_surgery_flag(notes: Optional[str]) -> int:
 
 
 def clean_injuries(df: pd.DataFrame) -> pd.DataFrame:
-    """Normalize the Kaggle injuries CSV into the players_injuries schema.
-
-    The source file lists "transactions" (placed on IL, activated from IL)
-    rather than discrete injury events. We treat each ``Relinquished`` row
-    as the start of an injury and pair it with the next ``Acquired`` row
-    for the same player to estimate games missed. If no return row is
-    found (still injured at end of season), games_missed is left as 0
-    so the downstream injury_flag treats it as "uncertain".
-    """
     if df.empty:
         return pd.DataFrame(columns=["player_id", "player_name_norm", "season",
                                      "date_of_injury", "injury_type",
@@ -287,7 +219,6 @@ def clean_injuries(df: pd.DataFrame) -> pd.DataFrame:
     out = out.dropna(subset=["Date"])
     out = standardize_injury_dates(out, date_col="Date")
 
-    # Explode multi-player cells.
     rel_records = []
     acq_records = []
     for _, row in out.iterrows():
@@ -316,7 +247,6 @@ def clean_injuries(df: pd.DataFrame) -> pd.DataFrame:
     rel_df = rel_df.sort_values(["player_name_norm", "date"]).reset_index(drop=True)
     acq_df = acq_df.sort_values(["player_name_norm", "date"]).reset_index(drop=True)
 
-    # Estimate games missed: pair each "out" with the next "back" for the same player.
     games_missed = []
     if not acq_df.empty:
         acq_lookup = acq_df.groupby("player_name_norm")["date"].apply(list).to_dict()
@@ -329,7 +259,6 @@ def clean_injuries(df: pd.DataFrame) -> pd.DataFrame:
             games_missed.append(0)
         else:
             days_out = (next_return - r["date"]).days
-            # NBA plays roughly every other day in season.
             games_missed.append(min(82, max(0, int(round(days_out / 2.5)))))
     rel_df["games_missed"] = games_missed
 
@@ -337,17 +266,15 @@ def clean_injuries(df: pd.DataFrame) -> pd.DataFrame:
     rel_df["required_surgery"] = rel_df["notes"].apply(required_surgery_flag)
     rel_df = rel_df.rename(columns={"date": "date_of_injury"})
     rel_df["date_of_injury"] = rel_df["date_of_injury"].dt.strftime("%Y-%m-%d")
-    rel_df["player_id"] = pd.NA  # resolved later by joining on normalized name
+    rel_df["player_id"] = pd.NA 
 
     keep = ["player_id", "player_name", "player_name_norm", "team", "season",
             "date_of_injury", "injury_type", "required_surgery", "games_missed", "notes"]
     return rel_df[keep].reset_index(drop=True)
 
 
-# Resolving player_id for injuries
 
 def attach_player_ids(injuries_df: pd.DataFrame, stats_df: pd.DataFrame) -> pd.DataFrame:
-    """Join injuries -> stats on normalized player name to recover player_id."""
     if injuries_df.empty or stats_df.empty:
         return injuries_df.copy()
     name_to_id = (
@@ -361,16 +288,9 @@ def attach_player_ids(injuries_df: pd.DataFrame, stats_df: pd.DataFrame) -> pd.D
     return out
 
 
-# Orchestrator (called by pipeline.py)
 
 def cleaner(raw_dir: str = RAW_DIR, processed_dir: str = PROCESSED_DIR,
             write_files: bool = True) -> dict:
-    """Clean both raw datasets end-to-end.
-
-    Returns a dict ``{"player_stats": <df>, "injuries": <df>}``. When
-    ``write_files=True`` (the default), also writes the cleaned dataframes to
-    ``data/processed/`` so other notebooks can skip the heavy lifting.
-    """
     os.makedirs(processed_dir, exist_ok=True)
 
     raw_stats = load_raw_player_stats(raw_dir)

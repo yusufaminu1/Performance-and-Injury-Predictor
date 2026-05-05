@@ -59,7 +59,6 @@ def train():
     X_train_scaled = scaler.fit_transform(X_train)
     X_test_scaled = scaler.transform(X_test)
 
-    # Train both models and pick the best by F1
     models = {
         'Logistic Regression': LogisticRegression(max_iter=1000, class_weight='balanced', random_state=42),
         'Random Forest': RandomForestClassifier(n_estimators=100, class_weight='balanced', random_state=42)
@@ -79,12 +78,10 @@ def train():
             best_model = model
             best_name = name
 
-    # Save best model and scaler
     joblib.dump(best_model, os.path.abspath(MODEL_PATH))
     joblib.dump(scaler, os.path.abspath(SCALER_PATH))
     print(f"\nSaved best model ({best_name}) to {MODEL_PATH}")
 
-    # Save metadata
     metadata = {
         'trained_at': datetime.now().isoformat(),
         'model_type': best_name,
